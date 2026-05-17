@@ -368,6 +368,24 @@
     }
     .color-chip:hover, .color-chip.selected { transform: scale(1.2); border-color: #fff; }
 
+    /* dep tags */
+    .dep-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: .78rem;
+      cursor: pointer;
+      transition: all .15s;
+      color: var(--text);
+    }
+    .dep-tag:hover { border-color: var(--accent); color: var(--accent); }
+    .dep-tag.selected { background: rgba(88,166,255,.15); border-color: var(--accent); color: var(--accent); }
+    .dep-tag .tag-id { font-family: monospace; font-size: .72rem; color: var(--text-muted); }
+
     /* progress slider */
     .progress-row { display: flex; align-items: center; gap: 10px; }
     input[type=range] {
@@ -612,8 +630,18 @@
         </div>
       </div>
       <div>
-        <label>依賴任務（任務 ID，逗號分隔）</label>
+        <label>依賴任務（點擊任務名稱自動填入 ID）</label>
         <input type="text" id="t-deps" placeholder="例：task-1, task-2" />
+        <div id="t-deps-list" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
+      <div id="t-id-box" style="display:none">
+        <label>此任務的 ID（給其他任務設定依賴時使用）</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="text" id="t-id-display" readonly
+                 style="background:var(--bg);color:var(--accent);font-family:monospace;cursor:pointer"
+                 onclick="copyTaskId()" title="點擊複製"/>
+          <button class="btn" onclick="copyTaskId()" style="white-space:nowrap;flex-shrink:0">📋 複製</button>
+        </div>
       </div>
     </div>
     <div class="modal-foot">
@@ -992,6 +1020,9 @@ window.openTaskModal = function(taskId) {
     document.getElementById('t-progress').value = t.progress || 0;
     document.getElementById('t-progress-val').textContent = (t.progress || 0) + '%';
     document.getElementById('t-deps').value     = t.dependencies || '';
+    // 顯示此任務的 ID
+    document.getElementById('t-id-box').style.display = 'block';
+    document.getElementById('t-id-display').value = t.id;
   } else {
     const today = new Date().toISOString().split('T')[0];
     const next  = new Date(Date.now() + 7*86400000).toISOString().split('T')[0];
@@ -1001,10 +1032,54 @@ window.openTaskModal = function(taskId) {
     document.getElementById('t-progress').value = 0;
     document.getElementById('t-progress-val').textContent = '0%';
     document.getElementById('t-deps').value     = '';
+    document.getElementById('t-id-box').style.display = 'none';
   }
+
+  // 渲染可依賴的任務標籤
+  renderDepTags(taskId);
 
   document.getElementById('task-modal').classList.add('open');
   setTimeout(() => document.getElementById('t-name').focus(), 200);
+};
+
+/* 渲染依賴任務選擇標籤 */
+function renderDepTags(currentId) {
+  const list    = (tasks[currentProject] || []).filter(t => t.id !== currentId);
+  const depsVal = document.getElementById('t-deps').value;
+  const selected = depsVal.split(',').map(s => s.trim()).filter(Boolean);
+  const container = document.getElementById('t-deps-list');
+
+  if (!list.length) {
+    container.innerHTML = '<span style="font-size:.78rem;color:var(--text-muted)">（尚無其他任務可設定依賴）</span>';
+    return;
+  }
+
+  container.innerHTML = '';
+  list.forEach(t => {
+    const isSelected = selected.includes(t.id);
+    const tag = document.createElement('div');
+    tag.className = 'dep-tag' + (isSelected ? ' selected' : '');
+    tag.innerHTML = `${t.name} <span class="tag-id">${t.id}</span>`;
+    tag.onclick = () => toggleDepTag(t.id, currentId);
+    container.appendChild(tag);
+  });
+}
+
+/* 切換依賴標籤選取 */
+function toggleDepTag(id, currentId) {
+  const input    = document.getElementById('t-deps');
+  const selected = input.value.split(',').map(s => s.trim()).filter(Boolean);
+  const idx      = selected.indexOf(id);
+  if (idx >= 0) selected.splice(idx, 1);
+  else          selected.push(id);
+  input.value = selected.join(', ');
+  renderDepTags(currentId);
+}
+
+/* 複製任務 ID */
+window.copyTaskId = function() {
+  const val = document.getElementById('t-id-display').value;
+  navigator.clipboard.writeText(val).then(() => showToast('📋 已複製任務 ID：' + val));
 };
 
 window.closeTaskModal = function() {
