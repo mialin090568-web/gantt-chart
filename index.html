@@ -199,11 +199,14 @@
       -webkit-overflow-scrolling: touch;
     }
     #gantt-wrap {
-      min-width: 600px;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      overflow: hidden;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    #gantt-target {
+      min-width: 600px;
     }
 
     /* empty state */
@@ -561,7 +564,7 @@
         <div>選擇左側專案，或新增第一個專案</div>
       </div>
       <div id="gantt-wrap" style="display:none">
-        <svg id="gantt"></svg>
+        <div id="gantt-target"></div>
       </div>
     </div>
 
@@ -857,13 +860,17 @@ function renderGantt() {
   wrap.style.display = 'block';
   empty.style.display = 'none';
 
-  const color = projects[currentProject]?.color || 'var(--accent)';
+  const color = projects[currentProject]?.color || '#58a6ff';
 
   // 注入顏色 CSS
   const styleId = 'gantt-color-style';
   let styleEl = document.getElementById(styleId);
   if (!styleEl) { styleEl = document.createElement('style'); styleEl.id = styleId; document.head.appendChild(styleEl); }
-  styleEl.textContent = `.gantt .bar { fill: ${color}88; } .gantt .bar-progress { fill: ${color}; }`;
+  styleEl.textContent = `.gantt .bar { fill: ${color}88 !important; } .gantt .bar-progress { fill: ${color} !important; }`;
+
+  // 每次重建 SVG 元素，避免 Frappe Gantt 找不到舊元素
+  const target = document.getElementById('gantt-target');
+  target.innerHTML = '<svg id="gantt"></svg>';
 
   const frappe = taskList.map(t => ({
     id:           t.id,
