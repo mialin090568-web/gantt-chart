@@ -392,12 +392,106 @@
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── 手機版選單按鈕 ── */
+    #sidebar-toggle {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 1.3rem;
+      cursor: pointer;
+      padding: 4px 8px;
+      line-height: 1;
+    }
+
+    /* ── 手機版底部工具列 ── */
+    #mobile-bar {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 8px 16px;
+      gap: 8px;
+      z-index: 200;
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
+    }
+    #mobile-bar .btn { flex: 1; justify-content: center; font-size: .8rem; padding: 10px 8px; }
+
+    /* ── 手機版側欄遮罩 ── */
+    #sidebar-mask {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.6);
+      z-index: 150;
+    }
+
+    /* ── 響應式 ── */
+    @media (max-width: 768px) {
+      #sidebar-toggle { display: block; }
+
+      aside {
+        position: fixed;
+        left: -280px;
+        top: 0; bottom: 0;
+        z-index: 160;
+        width: 260px;
+        transition: left .25s ease;
+        box-shadow: var(--shadow);
+      }
+      aside.open { left: 0; }
+      #sidebar-mask.open { display: block; }
+
+      header { padding: 0 12px; gap: 10px; }
+      header h1 { font-size: .85rem; }
+
+      #fb-status span { display: none; } /* 只顯示小圓點 */
+
+      .toolbar { padding: 10px 12px; gap: 8px; }
+      .toolbar h2 { font-size: .88rem; }
+
+      #gantt-container { padding: 10px; padding-bottom: 72px; }
+
+      .view-btns .view-btn { padding: 5px 9px; font-size: .75rem; }
+
+      /* 桌面版新增按鈕隱藏，改用底部列 */
+      #add-task-btn { display: none; }
+
+      #mobile-bar { display: flex; }
+
+      .stats-bar {
+        padding: 8px 12px;
+        gap: 12px;
+        font-size: .75rem;
+        margin-bottom: 60px;
+      }
+
+      .modal { width: 95vw; }
+      .modal-body { padding: 16px; gap: 12px; }
+    }
+
+    @media (max-width: 400px) {
+      .view-btns .view-btn { padding: 4px 7px; font-size: .72rem; }
+      header h1 { display: none; }
+    }
   </style>
 </head>
 <body>
 
+<!-- 手機側欄遮罩 -->
+<div id="sidebar-mask" onclick="closeSidebar()"></div>
+
+<!-- 手機底部工具列 -->
+<div id="mobile-bar">
+  <button class="btn" onclick="toggleSidebar()">📁 專案</button>
+  <button class="btn primary" id="mobile-add-task-btn" onclick="openTaskModal()" disabled>＋ 新增任務</button>
+</div>
+
 <!-- ── HEADER ── -->
 <header>
+  <button id="sidebar-toggle" onclick="toggleSidebar()">☰</button>
   <h1>📊 <span>//</span> 專案甘特圖</h1>
   <div class="header-sep"></div>
   <div id="fb-status">
@@ -954,6 +1048,25 @@ function showToast(msg, duration = 2200) {
   el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), duration);
 }
+
+/* ════ 手機側欄 ════ */
+window.toggleSidebar = function() {
+  document.querySelector('aside').classList.toggle('open');
+  document.getElementById('sidebar-mask').classList.toggle('open');
+};
+window.closeSidebar = function() {
+  document.querySelector('aside').classList.remove('open');
+  document.getElementById('sidebar-mask').classList.remove('open');
+};
+
+// 選擇專案後自動關閉側欄（手機）
+const origSelectProject = window.selectProject;
+window.selectProject = async function(id) {
+  closeSidebar();
+  await origSelectProject(id);
+  // 同步啟用底部新增按鈕
+  document.getElementById('mobile-add-task-btn').disabled = false;
+};
 
 /* ════ Keyboard ════ */
 document.addEventListener('keydown', e => {
