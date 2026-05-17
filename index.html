@@ -693,15 +693,15 @@
   window._query      = query;
   window._orderBy    = orderBy;
 
-  // 測試連線
+  // 測試連線 - 用 getFirestore 直接確認連線
   try {
-    await getDocs(collection(db, "__ping__"));
-    setFbStatus(true);
-  } catch(e) {
-    setFbStatus(false);
-  }
+    // 啟用離線持久化（手機斷線時仍可讀取快取）
+    const { enableIndexedDbPersistence } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    enableIndexedDbPersistence(db).catch(() => {});
+  } catch(e) {}
 
-  // 初始化
+  // 初始化（不等 ping，直接啟動）
+  setFbStatus(true);
   window.initApp();
 </script>
 
@@ -725,20 +725,35 @@ function fbReady() { return !!window._db; }
 
 async function loadProjects() {
   if (!fbReady()) return;
-  const snap = await window._getDocs(window._collection(window._db, 'projects'));
-  projects = {};
-  snap.forEach(d => { projects[d.id] = d.data(); });
-  renderProjectList();
+  try {
+    const snap = await window._getDocs(window._collection(window._db, 'projects'));
+    projects = {};
+    snap.forEach(d => { projects[d.id] = d.data(); });
+    setFbStatus(true);
+    renderProjectList();
+  } catch(e) {
+    console.error('loadProjects error:', e);
+    setFbStatus(false);
+    showToast('⚠️ 資料庫連線失敗，請重新整理');
+  }
 }
 
 async function loadTasks(projectId) {
   if (!fbReady()) return [];
-  const snap = await window._getDocs(
-    window._collection(window._db, 'projects', projectId, 'tasks')
-  );
-  const list = [];
-  snap.forEach(d => list.push({ id: d.id, ...d.data() }));
-  return list;
+  try {
+    const snap = await window._getDocs(
+      window._collection(window._db, 'projects', projectId, 'tasks')
+    );
+    const list = [];
+    snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+    setFbStatus(true);
+    return list;
+  } catch(e) {
+    console.error('loadTasks error:', e);
+    setFbStatus(false);
+    showToast('⚠️ 讀取任務失敗，請重新整理');
+    return [];
+  }
 }
 
 async function saveProjectToFb(id, data) {
@@ -839,7 +854,11 @@ function subscribeToTasks(projectId) {
     const list = [];
     snap.forEach(d => list.push({ id: d.id, ...d.data() }));
     tasks[projectId] = list;
+    setFbStatus(true);
     if (currentProject === projectId) renderGantt();
+  }, err => {
+    console.error('snapshot error:', err);
+    setFbStatus(false);
   });
 }
 
